@@ -59,8 +59,15 @@
         
         _active = NO;
         _animated = YES;
+        
+        [[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(darkModeChanged:) name:@"AppleInterfaceThemeChangedNotification" object:nil];
     }
     return self;
+}
+
+- (void)dealloc {
+    [super dealloc];
+    [[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
 }
 
 
@@ -188,6 +195,10 @@
     id style = [dict objectForKey:@"AppleInterfaceStyle"];
     BOOL darkModeOn = ( style && [style isKindOfClass:[NSString class]] && NSOrderedSame == [style caseInsensitiveCompare:@"dark"] );
     return darkModeOn;
+}
+
+- (void)darkModeChanged:(NSNotification *)notification {
+    [self setNeedsDisplay:YES];
 }
 
 ///////////////////////////////////////
