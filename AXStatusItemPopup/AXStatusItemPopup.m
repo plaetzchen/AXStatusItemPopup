@@ -18,12 +18,9 @@
     BOOL _active;
     NSImageView *_imageView;
     NSStatusItem *_statusItem;
-    NSMenu *_dummyMenu;
+    NSPopover *_popover;
     id _popoverTransiencyMonitor;
 }
-
-@property(nonatomic, strong, readwrite) NSPopover* popover;
-
 @end
 
 ///////////////////////////////////
@@ -59,7 +56,6 @@
         
         self.statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
         self.statusItem.view = self;
-        _dummyMenu = [[NSMenu alloc] init];
         
         _active = NO;
         _animated = YES;
@@ -84,16 +80,11 @@
     
     // set image
     NSImage *image = (_active ? _alternateImage : _image);
-    _imageView.image = image;
-}
-
-////////////////////////////////////
-#pragma mark - Position / Size
-////////////////////////////////////
-
-- (void)setContentSize:(CGSize)size
-{
-    _popover.contentSize = size;
+    if ([self darkModeEnabled]){
+        _imageView.image = [self tintImage:image withColor:[NSColor whiteColor]];
+    } else {
+        _imageView.image = image;
+    }
 }
 
 ////////////////////////////////////
@@ -106,12 +97,7 @@
         [self hidePopover];
     } else {
         [self showPopover];
-    }    
-}
-
-- (void)rightMouseDown:(NSEvent *)theEvent
-{
-    [self mouseDown:nil];
+    }
 }
 
 ////////////////////////////////////
@@ -176,7 +162,6 @@
     
     if (!_popover.isShown) {
         _popover.animates = animated;
-        [self.statusItem popUpStatusItemMenu:_dummyMenu];
         [_popover showRelativeToRect:self.frame ofView:self preferredEdge:NSMinYEdge];
         _popoverTransiencyMonitor = [NSEvent addGlobalMonitorForEventsMatchingMask:NSLeftMouseDownMask|NSRightMouseDownMask handler:^(NSEvent* event) {
             [self hidePopover];
@@ -190,12 +175,35 @@
     
     if (_popover && _popover.isShown) {
         [_popover close];
-
-		if (_popoverTransiencyMonitor) {
-            [NSEvent removeMonitor:_popoverTransiencyMonitor];
-            _popoverTransiencyMonitor = nil;
-        }
+        [NSEvent removeMonitor:_popoverTransiencyMonitor];
     }
+}
+
+///////////////////////////////
+#pragma mark - Detect dark mode
+///////////////////////////////
+
+- (BOOL)darkModeEnabled {
+    NSDictionary *dict = [[NSUserDefaults standardUserDefaults] persistentDomainForName:NSGlobalDomain];
+    id style = [dict objectForKey:@"AppleInterfaceStyle"];
+    BOOL darkModeOn = ( style && [style isKindOfClass:[NSString class]] && NSOrderedSame == [style caseInsensitiveCompare:@"dark"] );
+    return darkModeOn;
+}
+
+///////////////////////////////////////
+#pragma mark - Tint image for dark mode
+///////////////////////////////////////
+
+- (NSImage *)tintImage:(NSImage *)imageToTint withColor:(NSColor *)tint {
+    NSImage *image = [imageToTint copy];
+    if (tint) {
+        [image lockFocus];
+        [tint set];
+        NSRect imageRect = {NSZeroPoint, [image size]};
+        NSRectFillUsingOperation(imageRect, NSCompositeSourceAtop);
+        [image unlockFocus];
+    }
+    return image;
 }
 
 @end
